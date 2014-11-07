@@ -1,4 +1,6 @@
 var request = require('request');
+var qs = require('querystring');
+var url = require('url');
 
 var noOpCache = {
   get: function(uri, cb) {
@@ -17,8 +19,17 @@ module.exports = function(uri, options, callback) {
   if (typeof options === 'function' && !callback) callback = options;
 
   var cache = options.cache || noOpCache;
+  var parsedUrl = url.parse(uri);
+  var keyUri = uri;
+  if (options.qs) {
+    if (parsedUrl.query) {
+      keyUri = uri + '&' + qs.stringify(options.qs);
+    } else {
+      keyUri = uri + '?' + qs.stringify(options.qs);
+    }
+  }
 
-  cache.get(uri, function(err, value) {
+  cache.get(keyUri, function(err, value) {
     if (err) return callback(err);
 
     if (value && new Date().getTime() <= value.expiryTimeMillis) {
@@ -81,7 +92,7 @@ module.exports = function(uri, options, callback) {
         var ttlMillis = Math.max(expiryTimeMillis - Date.now(), 0);
         var cachedResponse = { response: cachedResponseProperties(res), expiryTimeMillis: expiryTimeMillis };
 
-        cache.set(uri, private, cachedResponse, ttlMillis, function(err) {
+        cache.set(keyUri, private, cachedResponse, ttlMillis, function(err) {
           callback(err, res, body);
         });
       } else {
@@ -108,5 +119,3 @@ module.exports.get = module.exports;
 module.exports.Cache = require('./lib/cache');
 module.exports.MemoryStore = require('./lib/memory_store');
 module.exports.RedisStore = require('./lib/redis_store');
-
-
